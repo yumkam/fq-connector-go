@@ -38,6 +38,10 @@ func (pb *predicateBuilder) formatValue(
 		return pb.formatOptionalValue(value)
 	}
 
+	if value.Type.GetListType() != nil {
+		return pb.formatListValue(value)
+	}
+
 	return pb.formatTypedValue(value, embedBool)
 }
 
@@ -172,6 +176,11 @@ func (pb *predicateBuilder) formatOptionalValue(value *Ydb.TypedValue) (string, 
 	default:
 		return "", fmt.Errorf("unsupported type '%T': %w", v, common.ErrUnimplementedTypedValue)
 	}
+}
+
+func (pb *predicateBuilder) formatListValue(value *Ydb.TypedValue) (string, error) {
+	pb.args.AddTyped(value.Type, value)
+	return pb.formatter.GetPlaceholder(pb.args.Count() - 1), nil
 }
 
 func addTypedNull[ACCEPTOR_TYPE any](
@@ -610,6 +619,38 @@ func (pb *predicateBuilder) formatRegexp(
 	return pb.formatter.FormatRegexp(valueStr, patternStr)
 }
 
+func (pb *predicateBuilder) formatIn(
+	in *api_service_protos.TPredicate_TIn,
+	embedBool bool,
+) (string, error) {
+	valueStr, err := pb.formatExpression(in.Value, embedBool)
+	if err != nil {
+		return "", fmt.Errorf("format expression for value '%v': %w", in.Value, err)
+	}
+	if in.GetList() != nil {
+		listStr, err = FormatValue(in.GetList(), embedBool)
+		if err != nil {
+			return "", err
+		}
+		return pb.formatter.FormatIn(valueStr, listStr)
+	}
+	var sb strings.Builder
+	sb.WriteString(valueStr)
+	sb.WriteString(" IN (")
+	for i, item := range in.Set {
+		itemStr, err := formatValue(item, embedBool)
+		if err != nil {
+			return "", err
+		}
+		if i != 0 {
+			sb.WriteStr(",")
+		}
+		sb.WriteStr(itemStr)
+	}
+	sb.WriteString(")");
+	return sb.String(), nil
+}
+
 //nolint:gocyclo
 func (pb *predicateBuilder) formatPredicate(
 	predicate *api_service_protos.TPredicate,
@@ -671,6 +712,11 @@ func (pb *predicateBuilder) formatPredicate(
 		result, err = pb.FormatBetween(p.Between, embedBool)
 		if err != nil {
 			return "", fmt.Errorf("format between: %w", err)
+		}
+	case api_service_protos.TPredicate_In:
+		result, err := pb.formatIn(p.In, embedBool)
+		if err != nil {
+			return "", fmt.Errorf("format in: %w", err)
 		}
 	default:
 		return "", fmt.Errorf("%w, type: %T", common.ErrUnimplementedPredicateType, p)

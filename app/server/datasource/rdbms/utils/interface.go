@@ -149,6 +149,8 @@ type SQLFormatter interface {
 	FormatIf(predicateExpr, thenExpr, elseExpr string) (string, error)
 	// Renders `CAST(valueExpr AS ydbType)` predicate pushdown if possible
 	FormatCast(valueExpr string, ydbType *Ydb.Type) (string, error)
+	// Renders `value IN set` predicate pushdown if possible
+	FormatIn(valueStr string, in *api_service_protos.TPredicate_TIn) (string, error)
 	// TransformPredicateComparison transforms the comparison predicate
 	// (may be useful for some special data sources)
 	TransformPredicateComparison(src *api_service_protos.TPredicate_TComparison) (

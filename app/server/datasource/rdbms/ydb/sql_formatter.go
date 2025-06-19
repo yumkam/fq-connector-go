@@ -240,6 +240,15 @@ func (SQLFormatter) FormatLimitClause(
 	return fmt.Sprintf("%d, %d", limit.Offset, limit.Limit), nil
 }
 
+func (SQLFormatter) FormatIn(valueStr, listStr string) (string, error) {
+	var sb strings.Builder
+
+	sb.WriteString(valueStr)
+	sb.WriteString(" IN ")
+	sb.WriteString(listStr)
+	return sb.String(), nil
+}
+
 func NewSQLFormatter(mode config.TYdbConfig_Mode, cfg *config.TPushdownConfig) SQLFormatter {
 	return SQLFormatter{
 		mode: mode,

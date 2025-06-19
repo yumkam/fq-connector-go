@@ -455,17 +455,21 @@ func (c *connectionNative) rewriteQuery(params *rdbms_utils.QueryParams) (string
 	for i, arg := range params.QueryArgs.GetAll() {
 		var primitiveTypeID Ydb.Type_PrimitiveTypeId
 
-		if arg.YdbType.GetOptionalType() != nil {
-			internalType := arg.YdbType.GetOptionalType().GetItem()
+		nestedType := arg.YdbType
+		if nestedType.GetListType() != nil {
+			nestedType = nestedType.GetListType().GetItem()
+		}
 
-			switch t := internalType.GetType().(type) {
-			case *Ydb.Type_TypeId:
-				primitiveTypeID = t.TypeId
-			default:
-				return "", fmt.Errorf("optional type contains no primitive type: %v", arg.YdbType)
-			}
-		} else {
-			primitiveTypeID = arg.YdbType.GetTypeId()
+		internalType := nestedType
+		if nestedType.GetOptionalType() != nil {
+			internalType = nestedType.GetOptionalType().GetItem()
+		}
+
+		switch t := internalType.GetType().(type) {
+		case *Ydb.Type_TypeId:
+			primitiveTypeID = t.TypeId
+		default:
+			return "", fmt.Errorf("inner type is not primitive: %v", arg.YdbType)
 		}
 
 		typeName, err := primitiveYqlTypeName(primitiveTypeID)
@@ -473,8 +477,12 @@ func (c *connectionNative) rewriteQuery(params *rdbms_utils.QueryParams) (string
 			return "", fmt.Errorf("get YQL type name from value %v: %w", arg, err)
 		}
 
-		if arg.YdbType.GetOptionalType() != nil {
+		if nestedType.GetOptionalType() != nil {
 			typeName = fmt.Sprintf("%s?", typeName)
+		}
+
+		if arg.YdbType.GetListType() != nil {
+			typeName = fmt.Sprintf("List<%s>", typeName)
 		}
 
 		buf.WriteString(fmt.Sprintf("DECLARE $p%d AS %s;\n", i, typeName)) //nolint:revive

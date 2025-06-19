@@ -75,6 +75,10 @@ func (SQLFormatterDefault) TransformPredicateComparison(src *api_service_protos.
 	return src, nil
 }
 
+func (SQLFormatterDefault) FormatIn(_ string, _ *api_service_protos.TPredicate_TIn) (string, error) {
+	return "", common.ErrUnimplementedOperation
+}
+
 func (SQLFormatterDefault) ValidateWhere(_ *api_service_protos.TSelect_TWhere) error {
 	return nil
 }
