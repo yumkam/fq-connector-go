@@ -107,6 +107,12 @@ func (sqlFormatter) RenderBetween(value, least, greatest string) (string, error)
 	return fmt.Sprintf("%s BETWEEN %s AND %s", value, least, greatest), nil
 }
 
+func (sqlFormatter) FormatLimitClause(
+	limit *api_service_protos.TSelect_TLimit,
+) (string, error) {
+	return fmt.Sprintf("%d, %d", limit.Offset, limit.Limit), nil
+}
+
 func NewSQLFormatter(cfg *config.TPushdownConfig) rdbms_utils.SQLFormatter {
 	return sqlFormatter{cfg: cfg}
 }

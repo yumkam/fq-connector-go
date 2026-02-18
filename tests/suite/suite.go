@@ -113,6 +113,8 @@ type validateTableOptions struct {
 	what                *api_service_protos.TSelect_TWhat
 	predicate           *api_service_protos.TPredicate
 	filtering           api_service_protos.TReadSplitsRequest_EFiltering
+	limit               *api_service_protos.TSelect_TLimit
+	ignoreContent       bool
 }
 
 func newDefaultValidateTableOptions() *validateTableOptions {
@@ -120,6 +122,7 @@ func newDefaultValidateTableOptions() *validateTableOptions {
 		typeMappingSettings: &api_service_protos.TTypeMappingSettings{
 			DateTimeFormat: api_service_protos.EDateTimeFormat_YQL_FORMAT,
 		},
+		ignoreContent: false,
 	}
 }
 
@@ -155,8 +158,24 @@ type withPredicateOption struct {
 	val *api_service_protos.TPredicate
 }
 
+type withLimitOption struct {
+	val *api_service_protos.TSelect_TLimit
+}
+
+type withIgnoreContentOption struct {
+	val bool
+}
+
 func (o withPredicateOption) apply(options *validateTableOptions) {
 	options.predicate = o.val
+}
+
+func (o withLimitOption) apply(options *validateTableOptions) {
+	options.limit = o.val
+}
+
+func (o withIgnoreContentOption) apply(options *validateTableOptions) {
+	options.ignoreContent = o.val
 }
 
 func WithWhat(val *api_service_protos.TSelect_TWhat) ValidateTableOption {
@@ -173,6 +192,18 @@ func (o withWhatOption) apply(options *validateTableOptions) {
 
 func WithPredicate(val *api_service_protos.TPredicate) ValidateTableOption {
 	return &withPredicateOption{
+		val: val,
+	}
+}
+
+func WithLimit(val *api_service_protos.TSelect_TLimit) ValidateTableOption {
+	return &withLimitOption{
+		val: val,
+	}
+}
+
+func WithIgnoreContent(val bool) ValidateTableOption {
+	return &withIgnoreContentOption{
 		val: val,
 	}
 }
@@ -256,6 +287,7 @@ func (b *Base[ID, IDBUILDER]) doValidateTable(
 
 	slct := &api_service_protos.TSelect{
 		DataSourceInstance: dsi,
+		Limit:              options.limit,
 		What:               what,
 		From: &api_service_protos.TSelect_TFrom{
 			Table: table.Name,
@@ -286,7 +318,7 @@ func (b *Base[ID, IDBUILDER]) doValidateTable(
 	b.Require().NoError(err)
 
 	// verify data
-	table.MatchRecords(b.T(), records, schema)
+	table.MatchRecords(b.T(), records, schema, options.ignoreContent)
 }
 
 type BaseOption interface {

@@ -620,6 +620,32 @@ func (s *Suite) TestPushdownRegexpIf() {
 	)
 }
 
+// As order is not guaranteed, we must ignore table content
+func (s *Suite) TestLimit() {
+	s.ValidateTable(
+		s.dataSource,
+		tables["limitonly"],
+		suite.WithLimit(&api_service_protos.TSelect_TLimit{
+			Limit:  3,
+			Offset: 0,
+		}),
+		suite.WithIgnoreContent(true),
+	)
+}
+
+// As order is not guaranteed, we must ignore table content
+func (s *Suite) TestLimitOffset() {
+	s.ValidateTable(
+		s.dataSource,
+		tables["limitoffset"],
+		suite.WithLimit(&api_service_protos.TSelect_TLimit{
+			Limit:  1000,
+			Offset: 3,
+		}),
+		suite.WithIgnoreContent(true),
+	)
+}
+
 func NewSuite(
 	baseSuite *suite.Base[int32, *array.Int32Builder],
 	connectorMode config.TYdbConfig_Mode,

@@ -125,6 +125,7 @@ func (ds *dataSource) ReadSplit(
 	return ds.doReadSplit(ctx, logger, request, split, sinks[0], client)
 }
 
+//nolint:gocyclo
 func (ds *dataSource) doReadSplit(
 	ctx context.Context,
 	logger *zap.Logger,
@@ -138,6 +139,15 @@ func (ds *dataSource) doReadSplit(
 		WithYdbWhere(split.Select.GetWhere(), request.GetFiltering())
 	if err != nil {
 		return fmt.Errorf("build promql expression: %w", err)
+	}
+
+	if split.Select.GetLimit() != nil {
+		switch request.GetFiltering() {
+		case api_service_protos.TReadSplitsRequest_FILTERING_MANDATORY:
+			return fmt.Errorf("%w: LIMIT clause", common.ErrUnimplementedOperation)
+		default:
+			logger.Debug("ignored LIMIT clause")
+		}
 	}
 
 	pbQuery, err := promQLExpr.ToQuery()

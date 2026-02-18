@@ -372,7 +372,7 @@ func (ds *dataSource) ReadSplit(
 	ctx context.Context,
 	logger *zap.Logger,
 	_ string,
-	_ *api_service_protos.TReadSplitsRequest,
+	request *api_service_protos.TReadSplitsRequest,
 	split *api_service_protos.TSplit,
 	sinkFactory paging.SinkFactory[any],
 ) error {
@@ -393,6 +393,15 @@ func (ds *dataSource) ReadSplit(
 	})
 	if err != nil {
 		return fmt.Errorf("make connection: %w", err)
+	}
+
+	if split.Select.GetLimit() != nil {
+		switch request.GetFiltering() {
+		case api_service_protos.TReadSplitsRequest_FILTERING_MANDATORY:
+			return fmt.Errorf("%w: LIMIT clause", common.ErrUnimplementedOperation)
+		default:
+			logger.Debug("ignored LIMIT clause")
+		}
 	}
 
 	defer common.LogCloserError(logger, client, "close connection")
