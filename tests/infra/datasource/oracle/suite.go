@@ -295,17 +295,15 @@ func (s *Suite) TestLimitUnsupportedFilteringOptional() {
 	)
 }
 
-/* TODO
 func (s *Suite) TestLimitUnsupportedFilteringMandatory() {
 	for _, dsi := range s.dataSource.Instances {
-		suite.TestUnsupportedPushdownFilteringMandatory(
+		suite.TestUnsupportedLimitFilteringMandatory(
 			s.Base,
 			dsi,
 			tables["simple"],
 		)
 	}
 }
-*/
 
 func (s *Suite) TestInvalidLogin() {
 	s.T().Skip()
