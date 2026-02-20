@@ -175,6 +175,11 @@ func (SQLFormatter) RenderSelectQueryTextForColumnShard(
 		sb.WriteString(parts.WhereClause)
 	}
 
+	if parts.LimitClause != "" {
+		sb.WriteString(" LIMIT ")
+		sb.WriteString(parts.LimitClause)
+	}
+
 	return sb.String(), nil
 }
 
@@ -227,6 +232,12 @@ func (SQLFormatter) FormatCast(value string, ydbType *Ydb.Type) (string, error) 
 	}
 
 	return fmt.Sprintf("CAST(%s AS %s)", value, typeName), nil
+}
+
+func (SQLFormatter) FormatLimitClause(
+	limit *api_service_protos.TSelect_TLimit,
+) (string, error) {
+	return fmt.Sprintf("%d, %d", limit.Offset, limit.Limit), nil
 }
 
 func NewSQLFormatter(mode config.TYdbConfig_Mode, cfg *config.TPushdownConfig) SQLFormatter {

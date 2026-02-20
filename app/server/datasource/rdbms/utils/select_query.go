@@ -67,6 +67,20 @@ func MakeSelectQuery(
 		}
 	}
 
+	if split.Select.Limit != nil {
+		parts.LimitClause, err = formatter.FormatLimitClause(
+			split.Select.Limit,
+		)
+		if err != nil {
+			switch filtering {
+			case api_service_protos.TReadSplitsRequest_FILTERING_MANDATORY:
+				return nil, err
+			default:
+				logger.Debug("ignored LIMIT clause", zap.Error(err))
+			}
+		}
+	}
+
 	// Render whole query
 	queryText, err := formatter.RenderSelectQueryText(&parts, split)
 	if err != nil {

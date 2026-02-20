@@ -282,6 +282,29 @@ func (s *Suite) TestMissingDataSource() {
 	suite.TestMissingDataSource(s.Base, dsi)
 }
 
+// TODO limit can be implemented in future
+func (s *Suite) TestLimitUnsupportedFilteringOptional() {
+	s.ValidateTable(
+		s.dataSource,
+		tables["simple"],
+		suite.WithLimit(&api_service_protos.TSelect_TLimit{
+			Limit:  10,
+			Offset: 5,
+		}),
+		suite.WithFiltering(api_service_protos.TReadSplitsRequest_FILTERING_OPTIONAL),
+	)
+}
+
+func (s *Suite) TestLimitUnsupportedFilteringMandatory() {
+	for _, dsi := range s.dataSource.Instances {
+		suite.TestUnsupportedLimitFilteringMandatory(
+			s.Base,
+			dsi,
+			tables["simple"],
+		)
+	}
+}
+
 func (s *Suite) TestInvalidLogin() {
 	s.T().Skip()
 

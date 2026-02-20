@@ -193,3 +193,62 @@ func TestUnsupportedPushdownFilteringMandatory[ID test_utils.TableIDTypes, IDBUI
 	s.Require().NoError(err)
 	s.Require().Equal(float64(1), unsupportedErrors)
 }
+
+func TestUnsupportedLimitFilteringMandatory[ID test_utils.TableIDTypes, IDBUILDER test_utils.ArrowIDBuilder[ID]](
+	s *Base[ID, IDBUILDER],
+	dsi *api_common.TGenericDataSourceInstance,
+	table *test_utils.Table[ID, IDBUILDER],
+) {
+	ctx := context.Background()
+
+	// get stats snapshot before table reading
+	snapshot1, err := s.Connector.MetricsSnapshot()
+	s.Require().NoError(err)
+
+	// describe table
+	describeTableResponse, err := s.Connector.ClientBuffering().DescribeTable(ctx, dsi, nil, table.Name)
+	s.Require().NoError(err)
+	s.Require().Equal(Ydb.StatusIds_SUCCESS, describeTableResponse.Error.Status)
+
+	// verify schema
+	schema := describeTableResponse.Schema
+	table.MatchSchema(s.T(), schema)
+
+	// list splits
+	slct := &api_service_protos.TSelect{
+		DataSourceInstance: dsi,
+		What:               common.SchemaToSelectWhatItems(schema, nil),
+		From: &api_service_protos.TSelect_TFrom{
+			Table: table.Name,
+		},
+		Limit: &api_service_protos.TSelect_TLimit{
+			Limit:  10,
+			Offset: 5,
+		},
+	}
+
+	listSplitsResponses, err := s.Connector.ClientBuffering().ListSplits(ctx, slct)
+	s.Require().NoError(err)
+	s.Require().Equal(Ydb.StatusIds_SUCCESS, describeTableResponse.Error.Status)
+	s.Require().Len(listSplitsResponses, 1)
+
+	// read splits fails due to unsupported pushdown
+	splits := common.ListSplitsResponsesToSplits(listSplitsResponses)
+	readSplitsResponses, err := s.Connector.ClientBuffering().ReadSplits(
+		ctx,
+		splits,
+		common.WithFiltering(api_service_protos.TReadSplitsRequest_FILTERING_MANDATORY),
+	)
+	s.Require().NoError(err)                // no transport error
+	s.Require().Len(readSplitsResponses, 1) // but there is a logical error in the first stream message
+	s.Require().Equal(Ydb.StatusIds_UNSUPPORTED, readSplitsResponses[0].Error.Status)
+
+	// get stats snapshot after table reading
+	snapshot2, err := s.Connector.MetricsSnapshot()
+	s.Require().NoError(err)
+
+	// errors count incremented by one
+	unsupportedErrors, err := common.DiffStatusSensors(snapshot1, snapshot2, "RATE", "ReadSplits", "stream_status_total", "UNSUPPORTED")
+	s.Require().NoError(err)
+	s.Require().Equal(float64(1), unsupportedErrors)
+}

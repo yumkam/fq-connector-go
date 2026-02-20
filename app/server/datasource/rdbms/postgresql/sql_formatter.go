@@ -122,7 +122,9 @@ func (f sqlFormatter) RenderSelectQueryText(
 	// FIXME: this is the legacy behavior of Greenplum connector:
 	// need to make distinct SQL formatters in PostgreSQL and Greenplum in future.
 	if len(split.GetDescription()) == 0 {
-		return f.renderSelectQueryTextSingle(sb, parts), nil
+		f.renderSelectQueryTextSingle(sb, parts)
+
+		return sb.String(), nil
 	}
 
 	if err := protojson.Unmarshal(split.GetDescription(), &dst); err != nil {
@@ -131,36 +133,39 @@ func (f sqlFormatter) RenderSelectQueryText(
 
 	switch t := dst.Payload.(type) {
 	case *TSplitDescription_Single:
-		return f.renderSelectQueryTextSingle(sb, parts), nil
+		f.renderSelectQueryTextSingle(sb, parts)
 	case *TSplitDescription_HistogramBounds:
-		out, err := f.renderSelectQueryTextWithHistogramBounds(sb, parts, t.HistogramBounds)
+		err := f.renderSelectQueryTextWithHistogramBounds(sb, parts, t.HistogramBounds)
 		if err != nil {
 			return "", fmt.Errorf("render select query text with histogram bounds: %w", err)
 		}
-
-		return out, nil
 	default:
 		return "", fmt.Errorf("unknown splitting mode: %v", t)
 	}
+
+	if parts.LimitClause != "" {
+		sb.WriteString(" LIMIT ")
+		sb.WriteString(parts.LimitClause)
+	}
+
+	return sb.String(), nil
 }
 
 func (sqlFormatter) renderSelectQueryTextSingle(
 	sb *strings.Builder,
 	parts *rdbms_utils.SelectQueryParts,
-) string {
+) {
 	if parts.WhereClause != "" {
 		sb.WriteString(" WHERE ")
 		sb.WriteString(parts.WhereClause)
 	}
-
-	return sb.String()
 }
 
 func (f sqlFormatter) renderSelectQueryTextWithHistogramBounds(
 	sb *strings.Builder,
 	parts *rdbms_utils.SelectQueryParts,
 	histogramBounds *TSplitDescription_THistogramBounds,
-) (string, error) {
+) error {
 	sb.WriteString(" WHERE ")
 
 	if parts.WhereClause != "" {
@@ -196,41 +201,42 @@ func (f sqlFormatter) renderSelectQueryTextWithHistogramBounds(
 			upperVal = t.DecimalBounds.Upper.Value
 		}
 	default:
-		return "", fmt.Errorf("unknown histogram bounds type: %v", t)
+		return fmt.Errorf("unknown histogram bounds type: %v", t)
 	}
 
-	return f.renderSelectQueryTextWithBoundsHelper(sb, histogramBounds.ColumnName, lowerVal, upperVal)
+	return f.renderSelectQueryTextWithBoundsHelper(sb, histogramBounds.ColumnName, lowerVal, upperVal, parts)
 }
 
 func (f sqlFormatter) renderSelectQueryTextWithBoundsHelper(
 	sb *strings.Builder,
 	columnName string,
 	lower, upper any,
-) (string, error) {
+	_ *rdbms_utils.SelectQueryParts,
+) error {
 	if columnName == "" {
-		return "", errors.New("column name is empty")
+		return errors.New("column name is empty")
 	}
 
 	columnName = f.SanitiseIdentifier(columnName)
 
 	if lower == nil && upper == nil {
-		return "", errors.New("you must fill either lower bounds, either upper bounds, or both of them")
+		return errors.New("you must fill either lower bounds, either upper bounds, or both of them")
 	}
 
 	if lower == nil && upper != nil {
 		if _, err := fmt.Fprintf(sb, "%s < %v", columnName, upper); err != nil {
-			return "", fmt.Errorf("fprintf: %w", err)
+			return fmt.Errorf("fprintf: %w", err)
 		}
 
-		return sb.String(), nil
+		return nil
 	}
 
 	if lower != nil && upper == nil {
 		if _, err := fmt.Fprintf(sb, "%s >= %v", columnName, lower); err != nil {
-			return "", fmt.Errorf("fprintf: %w", err)
+			return fmt.Errorf("fprintf: %w", err)
 		}
 
-		return sb.String(), nil
+		return nil
 	}
 
 	sb.WriteString("(")
@@ -240,16 +246,22 @@ func (f sqlFormatter) renderSelectQueryTextWithBoundsHelper(
 		columnName, lower,
 		columnName, upper,
 	); err != nil {
-		return "", fmt.Errorf("fprintf: %w", err)
+		return fmt.Errorf("fprintf: %w", err)
 	}
 
 	sb.WriteString(")")
 
-	return sb.String(), nil
+	return nil
 }
 
 func (sqlFormatter) RenderBetween(value, least, greatest string) (string, error) {
 	return fmt.Sprintf("%s BETWEEN %s AND %s", value, least, greatest), nil
+}
+
+func (sqlFormatter) FormatLimitClause(
+	limit *api_service_protos.TSelect_TLimit,
+) (string, error) {
+	return fmt.Sprintf("%d OFFSET %d", limit.Limit, limit.Offset), nil
 }
 
 func NewSQLFormatter(cfg *config.TPushdownConfig) rdbms_utils.SQLFormatter {

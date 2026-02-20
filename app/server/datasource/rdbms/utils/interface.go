@@ -117,6 +117,7 @@ type SelectQueryParts struct {
 	SelectClause string
 	FromClause   string
 	WhereClause  string
+	LimitClause  string
 }
 
 type SQLFormatter interface {
@@ -131,6 +132,8 @@ type SQLFormatter interface {
 	// FormatFrom builds a substring containing the literals
 	// that must be placed after FROM (`SELECT ... FROM <this>`).
 	FormatFrom(tableName string) string
+	// FormatLimitClause builds a substring containing literals after LIMIT clause.
+	FormatLimitClause(limit *api_service_protos.TSelect_TLimit) (string, error)
 	// RenderSelectQueryText composes final query text from the given clauses.
 	// Particular implementation may mix-in some additional parts into the query.
 	RenderSelectQueryText(parts *SelectQueryParts, split *api_service_protos.TSplit) (string, error)

@@ -722,12 +722,16 @@ type Table[T TableIDTypes, K ArrowIDBuilder[T]] struct {
 	IDArrayBuilderFactory func() K
 }
 
-func (tb *Table[T, K]) MatchRecords(t *testing.T, records []arrow.Record, schema *api_service_protos.TSchema) {
+func (tb *Table[T, K]) MatchRecords(t *testing.T, records []arrow.Record, schema *api_service_protos.TSchema, ignoreContent bool) {
 	require.Equal(t, len(tb.Records), len(records))
 
 	for i := range tb.Records {
 		idArrayBuilder := tb.IDArrayBuilderFactory()
-		tb.Records[i].MatchRecord(t, records[i], schema, idArrayBuilder)
+
+		if !ignoreContent {
+			tb.Records[i].MatchRecord(t, records[i], schema, idArrayBuilder)
+		}
+
 		records[i].Release()
 	}
 }

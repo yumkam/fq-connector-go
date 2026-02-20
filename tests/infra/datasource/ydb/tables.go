@@ -733,6 +733,53 @@ var tables = map[string]*test_utils.Table[int32, *array.Int32Builder]{
 		},
 		Records: []*test_utils.Record[int32, *array.Int32Builder]{},
 	},
+	"limitonly": {
+		Name:                  "simple",
+		IDArrayBuilderFactory: newInt32IDArrayBuilder(memPool),
+		Schema: &test_utils.TableSchema{
+			Columns: map[string]*Ydb.Type{
+				"id":   common.MakePrimitiveType(Ydb.Type_INT32),
+				"col1": common.MakePrimitiveType(Ydb.Type_STRING),
+				"col2": common.MakePrimitiveType(Ydb.Type_INT32),
+			},
+		},
+		Records: []*test_utils.Record[int32, *array.Int32Builder]{
+			{
+				Columns: map[string]any{
+					"id": []int32{1, 2, 3},
+					"col1": [][]byte{
+						[]byte("ydb_a"),
+						[]byte("ydb_b"),
+						[]byte("ydb_c"),
+					},
+					"col2": []int32{10, 20, 30},
+				},
+			},
+		},
+	},
+	"limitoffset": {
+		Name:                  "simple",
+		IDArrayBuilderFactory: newInt32IDArrayBuilder(memPool),
+		Schema: &test_utils.TableSchema{
+			Columns: map[string]*Ydb.Type{
+				"id":   common.MakePrimitiveType(Ydb.Type_INT32),
+				"col1": common.MakePrimitiveType(Ydb.Type_STRING),
+				"col2": common.MakePrimitiveType(Ydb.Type_INT32),
+			},
+		},
+		Records: []*test_utils.Record[int32, *array.Int32Builder]{
+			{
+				Columns: map[string]any{
+					"id": []int32{4, 5},
+					"col1": [][]byte{
+						[]byte("ydb_d"),
+						[]byte("ydb_e"),
+					},
+					"col2": []int32{40, 50},
+				},
+			},
+		},
+	},
 }
 
 func pushdownSchemaYdb() *test_utils.TableSchema {

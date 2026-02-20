@@ -1,6 +1,7 @@
 package utils //nolint:revive
 
 import (
+	"fmt"
 	"strings"
 
 	"github.com/ydb-platform/ydb-go-genproto/protos/Ydb"
@@ -31,7 +32,18 @@ func (SQLFormatterDefault) RenderSelectQueryText(
 		sb.WriteString(parts.WhereClause)
 	}
 
+	if parts.LimitClause != "" {
+		sb.WriteString(" LIMIT ")
+		sb.WriteString(parts.LimitClause)
+	}
+
 	return sb.String(), nil
+}
+
+func (SQLFormatterDefault) FormatLimitClause(
+	_ *api_service_protos.TSelect_TLimit,
+) (string, error) {
+	return "", fmt.Errorf("%w: LIMIT clause", common.ErrUnimplementedOperation)
 }
 
 func (SQLFormatterDefault) FormatStartsWith(_, _ string) (string, error) {
