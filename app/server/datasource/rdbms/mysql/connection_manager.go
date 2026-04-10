@@ -35,7 +35,7 @@ func (c *connectionManager) Make(
 	}
 
 	if dsi.GetUseTls() {
-		optionFuncs = append(optionFuncs, func(c *client.Conn) error { c.UseSSL(true); nil })
+		optionFuncs = append(optionFuncs, func(c *client.Conn) error { c.UseSSL(true); return nil })
 	}
 
 	queryLogger := c.QueryLoggerFactory.Make(logger)
